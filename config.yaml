@@ -1,0 +1,15 @@
+bot:
+  token: '8864090057:AAHnr2P9AmsNj73CSU3afLjLJWQLqw_2wyk'
+  access_mode: 'all'
+  admins_ids:
+    - 8864090057
+
+database:
+  path: 'bot_database.db'
+
+logging:
+  level: 'INFO'
+
+limits:
+  max_participants_per_event: 30
+  max_expenses_per_event: 200
