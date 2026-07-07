@@ -87,8 +87,7 @@ async def open_event(callback: CallbackQuery) -> None:
     await callback.answer()
     
 
-@router.callback_query(F.data.startswith("participants:")
-                       | F.data.startswith("expenses:")
+@router.callback_query(F.data.startswith("expenses:")
                        | F.data.startswith("calculate:")
                        | F.data.startswith("export:")
                        | F.data.startswith("share:"))
