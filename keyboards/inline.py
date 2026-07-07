@@ -157,3 +157,12 @@ def confirm_delete_expense_keyboard(expense_id: int, event_id: int) -> InlineKey
     builder.button(text="Отмена", callback_data=f"view_expense:{expense_id}")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def calculate_result_keyboard(event_id: int) -> InlineKeyboardBuilder:
+    """Клавиатура экрана "Итог" — обновить расчёт (пересчитать заново) или вернуться в меню события."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔄 Обновить", callback_data=f"calculate:{event_id}")
+    builder.button(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
+    builder.adjust(1)
+    return builder.as_markup()
