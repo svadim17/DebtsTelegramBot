@@ -8,7 +8,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, LOG_LEVEL
 from database.db import init_db
-from handlers import start, participants, sharing, expenses, calculate
+from handlers import start, participants, sharing, expenses, calculate, export
 
 
 async def main() -> None:
@@ -27,6 +27,7 @@ async def main() -> None:
     dp.include_router(sharing.router)
     dp.include_router(expenses.router)
     dp.include_router(calculate.router)
+    dp.include_router(export.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)

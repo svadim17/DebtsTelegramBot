@@ -166,3 +166,14 @@ def calculate_result_keyboard(event_id: int) -> InlineKeyboardBuilder:
     builder.button(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def export_menu_keyboard(event_id: int) -> InlineKeyboardBuilder:
+    """Клавиатура выбора формата экспорта (Этап 6)."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📄 TXT", callback_data=f"export_txt:{event_id}")
+    builder.button(text="📊 XLSX", callback_data=f"export_xlsx:{event_id}")
+    builder.button(text="📕 PDF", callback_data=f"export_pdf:{event_id}")
+    builder.button(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
+    builder.adjust(3, 1)
+    return builder.as_markup()

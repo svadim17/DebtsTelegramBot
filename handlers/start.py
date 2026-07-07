@@ -121,8 +121,3 @@ async def noop(callback: CallbackQuery) -> None:
     ничего не делает, просто гасит нажатие без всплывающей ошибки."""
     await callback.answer()
 
-
-@router.callback_query(F.data.startswith("export:"))
-async def stub_future_stage(callback: CallbackQuery) -> None:
-    """Временная заглушка — эти разделы реализуем на следующих этапах."""
-    await callback.answer("Эта функция появится на следующем этапе разработки 🚧", show_alert=True)

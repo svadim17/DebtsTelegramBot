@@ -14,6 +14,36 @@ router = Router()
 # участнику пустячный долг в доли копейки
 ZERO_THRESHOLD = 0.005
 
+async def build_report_data(session, event_id: int) -> dict:
+    """Собирает все данные, нужные и для экрана "Итог", и для экспорта
+    (Этап 6) — вынесено сюда, чтобы не дублировать один и тот же запрос
+    к БД и один и тот же расчёт балансов в двух разных хендлерах.
+
+    Возвращает словарь. Если участников или трат ещё нет, соответствующие
+    поля balance/transactions/name_by_id будут None — вызывающий код
+    должен сам решить, как об этом сообщить пользователю.
+    """
+    event = await crud.get_event_by_id(session, event_id)
+    participants = await crud.get_participants(session, event_id)
+    expenses = await crud.get_expenses(session, event_id)
+
+    paid = owed = balance = transactions = name_by_id = None
+    if participants and expenses:
+        paid, owed, balance = calculate_balances(participants, expenses)
+        transactions = minimize_transactions(balance)
+        name_by_id = {p.id: p.name for p in participants}
+
+    return {
+        "event": event,
+        "participants": participants,
+        "expenses": expenses,
+        "paid": paid,
+        "owed": owed,
+        "balance": balance,
+        "transactions": transactions,
+        "name_by_id": name_by_id,
+    }
+
 
 @router.callback_query(F.data.startswith("calculate:"))
 async def show_calculation(callback: CallbackQuery) -> None:
