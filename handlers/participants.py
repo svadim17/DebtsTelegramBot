@@ -6,19 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import MAX_PARTICIPANTS_PER_EVENT
 from database import crud
 from database.db import async_session
+from handlers.access import require_editor
 from keyboards.inline import (confirm_delete_participant_keyboard, event_menu_keyboard, participants_menu_keyboard)
 from states.fsm_states import AddParticipants, RenameParticipant
 
 
 router = Router()
-
-
-async def _check_access(session: AsyncSession, callback: CallbackQuery, event_id: int) -> bool:
-    """ Проверяет, что пользователь имеет право редактировать это событие. """
-    if await crud.is_user_editor(session, event_id, callback.from_user.id):
-        return True
-    await callback.answer("У тебя нет доступа к этому событию 🚫", show_alert=True)
-    return False
 
 
 async def _render_participants_list(callback: CallbackQuery, event_id: int) -> None:
@@ -46,7 +39,7 @@ async def show_participants(callback: CallbackQuery) -> None:
     event_id = int(callback.data.split(":")[1])
 
     async with async_session() as session:
-        if not await _check_access(session, callback, event_id):
+        if not await require_editor(session, callback, event_id):
             return
 
     await _render_participants_list(callback, event_id)
@@ -58,7 +51,7 @@ async def add_participants_start(callback: CallbackQuery, state: FSMContext) -> 
     event_id = int(callback.data.split(":")[1])
 
     async with async_session() as session:
-        if not await _check_access(session, callback, event_id):
+        if not await require_editor(session, callback, event_id):
             return
         current_count = await crud.count_participants(session, event_id)
 
@@ -127,7 +120,7 @@ async def rename_participant_start(callback: CallbackQuery, state: FSMContext) -
         if participant is None:
             await callback.answer("Участник не найден.", show_alert=True)
             return
-        if not await _check_access(session, callback, participant.event_id):
+        if not await require_editor(session, callback, participant.event_id):
             return
 
     # Сохраняем и participant_id, и event_id — второй нужен, чтобы вернуться
@@ -171,7 +164,7 @@ async def delete_participant_ask(callback: CallbackQuery) -> None:
         if participant is None:
             await callback.answer("Участник не найден.", show_alert=True)
             return
-        if not await _check_access(session, callback, participant.event_id):
+        if not await require_editor(session, callback, participant.event_id):
             return
         event_id = participant.event_id
 
@@ -191,7 +184,7 @@ async def confirm_delete_participant(callback: CallbackQuery) -> None:
             return
 
         event_id = participant.event_id
-        if not await _check_access(session, callback, event_id):
+        if not await require_editor(session, callback, event_id):
             return
 
         deleted = await crud.delete_participant(session, participant_id)

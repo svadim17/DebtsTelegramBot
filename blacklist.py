@@ -15,43 +15,68 @@ def main_menu_keyboard() -> InlineKeyboardBuilder:
 def events_list_keyboard(events: list[Event]) -> InlineKeyboardBuilder:
     builder = InlineKeyboardBuilder()
     for event in events:
-        builder.row(InlineKeyboardButton(text=event.title, callback_data=f"open_event:{event.id}"))
-    builder.row(InlineKeyboardButton(text="⬅️ В меню", callback_data="back_to_main"))
+        builder.row(
+            InlineKeyboardButton(
+                text=event.title, callback_data=f"open_event:{event.id}"
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(text="⬅️ В меню", callback_data="back_to_main")
+    )
     return builder.as_markup()
 
 
 def event_menu_keyboard(event_id: int) -> InlineKeyboardBuilder:
-    """ Меню внутри события """
+    """Меню внутри события — часть разделов пока заглушки для следующих этапов."""
     builder = InlineKeyboardBuilder()
     builder.button(text="👥 Участники", callback_data=f"participants:{event_id}")
-    builder.button(text="💸 Затраты", callback_data=f"expenses:{event_id}")
+    builder.button(text="💸 Траты", callback_data=f"expenses:{event_id}")
     builder.button(text="📊 Итог", callback_data=f"calculate:{event_id}")
-    builder.button(text="📤 Экспорт данных", callback_data=f"export:{event_id}")
+    builder.button(text="📤 Экспорт", callback_data=f"export:{event_id}")
     builder.button(text="🔗 Доступ", callback_data=f"share:{event_id}")
     builder.button(text="⬅️ Назад", callback_data="my_events")
     builder.adjust(2)
     return builder.as_markup()
 
 
-def participants_menu_keyboard(event_id: int, participants: list[Participant]) -> InlineKeyboardBuilder:
+def participants_menu_keyboard(
+    event_id: int, participants: list[Participant]
+) -> InlineKeyboardBuilder:
     """Список участников: у каждого — кнопка переименовать и удалить в одной строке."""
     builder = InlineKeyboardBuilder()
 
     for participant in participants:
-        builder.row(InlineKeyboardButton(text=f"✏️ {participant.name}",
-                                         callback_data=f"rename_participant:{participant.id}",),
-                    InlineKeyboardButton(text="❌",
-                                         callback_data=f"delete_participant:{participant.id}"))
+        builder.row(
+            InlineKeyboardButton(
+                text=f"✏️ {participant.name}",
+                callback_data=f"rename_participant:{participant.id}",
+            ),
+            InlineKeyboardButton(
+                text="❌", callback_data=f"delete_participant:{participant.id}"
+            ),
+        )
 
-    builder.row(InlineKeyboardButton(text="➕ Добавить участников", callback_data=f"add_participants:{event_id}",))
-    builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"open_event:{event_id}"))
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить участников",
+            callback_data=f"add_participants:{event_id}",
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
+    )
     return builder.as_markup()
 
 
-def confirm_delete_participant_keyboard(participant_id: int, event_id: int) -> InlineKeyboardBuilder:
+def confirm_delete_participant_keyboard(
+    participant_id: int, event_id: int
+) -> InlineKeyboardBuilder:
     """Подтверждение перед удалением участника — чтобы не удалить случайным нажатием."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Да, удалить", callback_data=f"confirm_delete_participant:{participant_id}",)
+    builder.button(
+        text="✅ Да, удалить",
+        callback_data=f"confirm_delete_participant:{participant_id}",
+    )
     builder.button(text="Отмена", callback_data=f"participants:{event_id}")
     builder.adjust(1)
     return builder.as_markup()
@@ -60,18 +85,22 @@ def confirm_delete_participant_keyboard(participant_id: int, event_id: int) -> I
 def share_menu_keyboard(event_id: int) -> InlineKeyboardBuilder:
     """Клавиатура раздела "Доступ" — обновить ссылку-приглашение или вернуться назад."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="🔄 Обновить ссылку", callback_data=f"regenerate_link:{event_id}")
+    builder.button(
+        text="🔄 Обновить ссылку", callback_data=f"regenerate_link:{event_id}"
+    )
     builder.button(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
     builder.adjust(1)
     return builder.as_markup()
 
 
-# --- Клавиатуры раздела "Траты" ---
+# --- Клавиатуры раздела "Траты" (Этап 4) ---
 
 EXPENSES_PAGE_SIZE = 5  # сколько трат показывать на одной "странице" списка
 
 
-def expenses_list_keyboard(event_id: int, expenses: list[Expense], page: int) -> InlineKeyboardBuilder:
+def expenses_list_keyboard(
+    event_id: int, expenses: list[Expense], page: int
+) -> InlineKeyboardBuilder:
     """Список трат с пагинацией — по одной кнопке на трату + навигация."""
     builder = InlineKeyboardBuilder()
 
@@ -82,7 +111,9 @@ def expenses_list_keyboard(event_id: int, expenses: list[Expense], page: int) ->
         label = f"{expense.payer.name} · {expense.amount:.2f}"
         if expense.description:
             label += f" · {expense.description}"
-        builder.row(InlineKeyboardButton(text=label, callback_data=f"view_expense:{expense.id}"))
+        builder.row(
+            InlineKeyboardButton(text=label, callback_data=f"view_expense:{expense.id}")
+        )
 
     total_pages = max(1, (len(expenses) + EXPENSES_PAGE_SIZE - 1) // EXPENSES_PAGE_SIZE)
     if total_pages > 1:
@@ -91,14 +122,31 @@ def expenses_list_keyboard(event_id: int, expenses: list[Expense], page: int) ->
         nav_row = []
         if page > 0:
             nav_row.append(
-                InlineKeyboardButton(text="◀️", callback_data=f"expenses_page:{event_id}:{page - 1}"))
-        nav_row.append(InlineKeyboardButton(text=f"{page + 1}/{total_pages}", callback_data="noop"))
+                InlineKeyboardButton(
+                    text="◀️", callback_data=f"expenses_page:{event_id}:{page - 1}"
+                )
+            )
+        nav_row.append(
+            InlineKeyboardButton(
+                text=f"{page + 1}/{total_pages}", callback_data="noop"
+            )
+        )
         if page < total_pages - 1:
-            nav_row.append(InlineKeyboardButton(text="▶️", callback_data=f"expenses_page:{event_id}:{page + 1}"))
+            nav_row.append(
+                InlineKeyboardButton(
+                    text="▶️", callback_data=f"expenses_page:{event_id}:{page + 1}"
+                )
+            )
         builder.row(*nav_row)
 
-    builder.row(InlineKeyboardButton(text="➕ Добавить трату", callback_data=f"add_expense:{event_id}"))
-    builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"open_event:{event_id}"))
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить трату", callback_data=f"add_expense:{event_id}"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
+    )
     return builder.as_markup()
 
 
@@ -106,7 +154,11 @@ def payer_picker_keyboard(participants: list[Participant]) -> InlineKeyboardBuil
     """Выбор плательщика при добавлении траты — по кнопке на участника."""
     builder = InlineKeyboardBuilder()
     for participant in participants:
-        builder.row(InlineKeyboardButton(text=participant.name, callback_data=f"pick_payer:{participant.id}"))
+        builder.row(
+            InlineKeyboardButton(
+                text=participant.name, callback_data=f"pick_payer:{participant.id}"
+            )
+        )
     builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add_expense"))
     return builder.as_markup()
 
@@ -131,14 +183,22 @@ def split_choice_keyboard() -> InlineKeyboardBuilder:
     return builder.as_markup()
 
 
-def split_custom_keyboard(participants: list[Participant], selected_ids: set[int]) -> InlineKeyboardBuilder:
+def split_custom_keyboard(
+    participants: list[Participant], selected_ids: set[int]
+) -> InlineKeyboardBuilder:
     """Мультивыбор участников траты — чекбоксы, переключаются по нажатию."""
     builder = InlineKeyboardBuilder()
     for participant in participants:
         checkbox = "✅" if participant.id in selected_ids else "☐"
-        builder.row(InlineKeyboardButton(text=f"{checkbox} {participant.name}",
-                                         callback_data=f"toggle_split_participant:{participant.id}"))
-    builder.row(InlineKeyboardButton(text="✅ Готово", callback_data="confirm_custom_split"))
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{checkbox} {participant.name}",
+                callback_data=f"toggle_split_participant:{participant.id}",
+            )
+        )
+    builder.row(
+        InlineKeyboardButton(text="✅ Готово", callback_data="confirm_custom_split")
+    )
     builder.row(InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add_expense"))
     return builder.as_markup()
 
@@ -151,9 +211,13 @@ def expense_detail_keyboard(expense_id: int, event_id: int) -> InlineKeyboardBui
     return builder.as_markup()
 
 
-def confirm_delete_expense_keyboard(expense_id: int, event_id: int) -> InlineKeyboardBuilder:
+def confirm_delete_expense_keyboard(
+    expense_id: int, event_id: int
+) -> InlineKeyboardBuilder:
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Да, удалить", callback_data=f"confirm_delete_expense:{expense_id}")
+    builder.button(
+        text="✅ Да, удалить", callback_data=f"confirm_delete_expense:{expense_id}"
+    )
     builder.button(text="Отмена", callback_data=f"view_expense:{expense_id}")
     builder.adjust(1)
     return builder.as_markup()

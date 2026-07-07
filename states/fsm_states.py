@@ -11,3 +11,10 @@ class AddParticipants(StatesGroup):
 
 class RenameParticipant(StatesGroup):
     waiting_for_new_name = State()
+
+
+class AddExpense(StatesGroup):
+    # Выбор плательщика происходит через inline-кнопки
+    waiting_for_amount = State()
+    waiting_for_description = State()
+    choosing_participants = State()

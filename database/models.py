@@ -62,7 +62,7 @@ class Expense(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id"))
     payer_id: Mapped[int] = mapped_column(ForeignKey("participants.id"))
-    amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    amount: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     split_type: Mapped[SplitType] = mapped_column(Enum(SplitType), default=SplitType.EQUAL)
     created_by: Mapped[int] = mapped_column(BigInteger)
@@ -81,7 +81,7 @@ class ExpenseShare(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     expense_id: Mapped[int] = mapped_column(ForeignKey("expenses.id"))
     participant_id: Mapped[int] = mapped_column(ForeignKey("participants.id"))
-    share_amount: Mapped[float] = mapped_column(Numeric(12, 2))
+    share_amount: Mapped[float] = mapped_column(Numeric(12, 2, asdecimal=False))
 
     expense: Mapped["Expense"] = relationship(back_populates="shares")
     participant: Mapped["Participant"] = relationship(back_populates="shares")

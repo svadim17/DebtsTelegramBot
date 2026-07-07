@@ -10,7 +10,7 @@ from states.fsm_states import CreateEvent
 router = Router()
 
 WELCOME_TEXT = (
-    "👋 Привет! Я помогу рассчитать, кто кому должен денег после мероприятия.\n\n"
+    "👋 Привет, я от Вадима @svadim17! Я помогу рассчитать, кто кому должен денег после мероприятия.\n\n"
     "Как это работает:\n"
     "1. Ты создаёшь событие и добавляешь участников\n"
     "2. Вносишь, кто сколько заплатил\n"
@@ -115,8 +115,14 @@ async def open_event(callback: CallbackQuery) -> None:
     await callback.answer()
     
 
-@router.callback_query(F.data.startswith("expenses:")
-                       | F.data.startswith("calculate:")
+@router.callback_query(F.data == "noop")
+async def noop(callback: CallbackQuery) -> None:
+    """Декоративная кнопка (например, индикатор "2/5" в пагинации) —
+    ничего не делает, просто гасит нажатие без всплывающей ошибки."""
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("calculate:")
                        | F.data.startswith("export:"))
 async def stub_future_stage(callback: CallbackQuery) -> None:
     """Временная заглушка — эти разделы реализуем на следующих этапах."""

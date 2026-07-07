@@ -1,8 +1,9 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 import secrets
 from database.models import Event, EventEditor, EventStatus, Expense, ExpenseShare, Participant
-
+from services.money import split_equally
 
 async def create_event(session: AsyncSession, title: str, owner_tg_id: int, chat_id: int | None = None) -> Event:
     """Создаёт новое событие и делает создателя владельцем-редактором."""
@@ -206,3 +207,82 @@ async def regenerate_invite_token(session: AsyncSession, event_id: int) -> Event
     await session.commit()
     await session.refresh(event)
     return event
+
+
+# --- Траты (Этап 4) ---
+
+# Общие "жадные" опции загрузки связанных данных для Expense.
+# Нужны, потому что после закрытия сессии обращение к expense.payer
+# или expense.shares без предварительной подгрузки вызовет ошибку —
+# в отличие от простых колонок (title, name), связи по умолчанию
+# подгружаются лениво и требуют активной сессии.
+_EXPENSE_LOAD_OPTIONS = (
+    selectinload(Expense.payer),
+    selectinload(Expense.shares).selectinload(ExpenseShare.participant),
+)
+
+
+async def create_expense(session: AsyncSession,
+                         event_id: int,
+                         payer_id: int,
+                         amount: float,
+                         description: str | None,
+                         participant_ids: list[int],
+                         created_by: int) -> Expense:
+    """Создаёт трату и сразу считает доли участников (поровну).
+    participant_ids — те, кто потребляет эту трату (не обязательно все участники события).
+    """
+    expense = Expense(event_id=event_id, payer_id=payer_id, amount=amount, description=description, created_by=created_by)
+    session.add(expense)
+    await session.flush()  # получаем expense.id для создания ExpenseShare
+
+    shares = split_equally(amount, participant_ids)
+    for participant_id, share_amount in shares.items():
+        session.add(ExpenseShare(expense_id=expense.id, participant_id=participant_id, share_amount=share_amount))
+
+    await session.commit()
+
+    # Перечитываем с подгруженными связями, чтобы сразу можно было
+    # показать пользователю итоговую карточку траты
+    result = await session.execute(
+        select(Expense).where(Expense.id == expense.id).options(*_EXPENSE_LOAD_OPTIONS)
+    )
+    return result.scalar_one()
+
+
+async def get_expenses(session: AsyncSession, event_id: int) -> list[Expense]:
+    """Возвращает все траты события, отсортированные от новых к старым."""
+    result = await session.execute(
+        select(Expense)
+        .where(Expense.event_id == event_id)
+        .options(*_EXPENSE_LOAD_OPTIONS)
+        .order_by(Expense.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_expense_by_id(session: AsyncSession, expense_id: int) -> Expense | None:
+    result = await session.execute(
+        select(Expense)
+        .where(Expense.id == expense_id)
+        .options(*_EXPENSE_LOAD_OPTIONS)
+    )
+    return result.scalar_one_or_none()
+
+
+async def count_expenses(session: AsyncSession, event_id: int) -> int:
+    """Считает траты события — нужно для проверки лимита из config.yaml."""
+    result = await session.execute(
+        select(Expense.id).where(Expense.event_id == event_id)
+    )
+    return len(result.all())
+
+
+async def delete_expense(session: AsyncSession, expense_id: int) -> bool:
+    """Удаляет трату вместе со всеми её долями (cascade настроен в модели)."""
+    expense = await session.get(Expense, expense_id)
+    if expense is None:
+        return False
+    await session.delete(expense)
+    await session.commit()
+    return True

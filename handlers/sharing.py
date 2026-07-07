@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery
 
 from database import crud
 from database.db import async_session
+from handlers.access import require_editor
 from keyboards.inline import share_menu_keyboard
 
 router = Router()
@@ -50,7 +51,7 @@ async def show_share_menu(callback: CallbackQuery, bot: Bot) -> None:
     event_id = int(callback.data.split(":")[1])
 
     async with async_session() as session:
-        if not await crud.is_user_editor(session, event_id, callback.from_user.id):
+        if not await require_editor(session, callback, event_id):
             await callback.answer("У тебя нет доступа к этому событию 🚫", show_alert=True)
             return
 
@@ -63,7 +64,7 @@ async def regenerate_link(callback: CallbackQuery, bot: Bot) -> None:
     event_id = int(callback.data.split(":")[1])
 
     async with async_session() as session:
-        if not await crud.is_user_editor(session, event_id, callback.from_user.id):
+        if not await require_editor(session, callback, event_id):
             await callback.answer("У тебя нет доступа к этому событию 🚫", show_alert=True)
             return
         await crud.regenerate_invite_token(session, event_id)
