@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+import secrets
 from database.models import Event, EventEditor, EventStatus, Expense, ExpenseShare, Participant
 
 
@@ -146,3 +146,63 @@ async def delete_participant(session: AsyncSession, participant_id: int) -> bool
     await session.delete(participant)
     await session.commit()
     return True
+
+
+async def get_event_by_invite_token(session: AsyncSession, token: str) -> Event | None:
+    """Ищет событие по токену из диплинка вида ?start=join_<token>."""
+    result = await session.execute(select(Event).where(Event.invite_token == token))
+    return result.scalar_one_or_none()
+
+
+async def join_event_by_token(session: AsyncSession,
+                              token: str,
+                              tg_user_id: int,
+                              tg_username: str | None,
+                              tg_first_name: str | None) -> Event | None:
+    """Добавляет пользователя в редакторы события по токену приглашения.
+    Если пользователь уже редактор (например, повторно перешёл по той же
+    ссылке) — просто возвращает событие без дублирования записи.
+    Возвращает None, если токен не найден (ссылка недействительна,
+    например была сгенерирована заново через "Обновить ссылку").
+    """
+    event = await get_event_by_invite_token(session, token)
+    if event is None:
+        return None
+
+    already_editor = await is_user_editor(session, event.id, tg_user_id)
+    if not already_editor:
+        editor = EventEditor(event_id=event.id,
+                             tg_user_id=tg_user_id,
+                             is_owner=False,
+                             tg_username=tg_username,
+                             tg_first_name=tg_first_name)
+        session.add(editor)
+        await session.commit()
+
+    return event
+
+
+async def get_event_editors(session: AsyncSession, event_id: int) -> list[EventEditor]:
+    """Возвращает список всех, у кого есть доступ на редактирование события."""
+    result = await session.execute(
+        select(EventEditor)
+        .where(EventEditor.event_id == event_id)
+        .order_by(EventEditor.is_owner.desc(), EventEditor.id)
+    )
+    return list(result.scalars().all())
+
+
+async def regenerate_invite_token(session: AsyncSession, event_id: int) -> Event | None:
+    """Генерирует новый токен приглашения — старая ссылка перестаёт работать.
+    Полезно, если ссылка случайно попала не в те руки и нужно "отозвать" доступ
+    для тех, кто ещё не успел по ней перейти (уже присоединившихся редакторов
+    это не затрагивает — их можно только удалить из EventEditor вручную).
+    """
+    event = await session.get(Event, event_id)
+    if event is None:
+        return None
+
+    event.invite_token = secrets.token_urlsafe(12)
+    await session.commit()
+    await session.refresh(event)
+    return event

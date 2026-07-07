@@ -1,8 +1,7 @@
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-
 from database import crud
 from database.db import async_session
 from keyboards.inline import (event_menu_keyboard, events_list_keyboard, main_menu_keyboard)
@@ -21,9 +20,38 @@ WELCOME_TEXT = (
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext) -> None:
+async def cmd_start(message: Message, state: FSMContext, command: CommandObject) -> None:
     await state.clear()
+
+    args = command.args
+    if args and args.startswith("join_"):
+        token = args.removeprefix("join_")
+        await _join_event_by_link(message, token)
+        return
+
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_keyboard())
+
+async def _join_event_by_link(message: Message, token: str) -> None:
+    """ Обрабатывает переход по ссылке-приглашению https://t.me/bot?start=join_<token>.
+    Добавляет пользователя в редакторы события (если он ещё не редактор) и сразу открывает меню события. """
+
+    async with async_session() as session:
+        event = await crud.join_event_by_token(session,
+                                               token=token,
+                                               tg_user_id=message.from_user.id,
+                                               tg_username=message.from_user.username,
+                                               tg_first_name=message.from_user.first_name)
+
+    if event is None:
+        await message.answer("⚠️ Ссылка недействительна или устарела — возможно, "
+                             "владелец события обновил её.\n\n"
+                             "Попроси актуальную ссылку у того, кто тебя приглашал.",
+                             reply_markup=main_menu_keyboard())
+        return
+
+    await message.answer(f"✅ Ты получил доступ к событию «{event.title}»!\n"
+                         f"Теперь можешь вместе с остальными добавлять участников и траты.",
+                         reply_markup=event_menu_keyboard(event.id))
 
 
 @router.callback_query(F.data == "back_to_main")
@@ -89,8 +117,7 @@ async def open_event(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("expenses:")
                        | F.data.startswith("calculate:")
-                       | F.data.startswith("export:")
-                       | F.data.startswith("share:"))
+                       | F.data.startswith("export:"))
 async def stub_future_stage(callback: CallbackQuery) -> None:
     """Временная заглушка — эти разделы реализуем на следующих этапах."""
     await callback.answer("Эта функция появится на следующем этапе разработки 🚧", show_alert=True)

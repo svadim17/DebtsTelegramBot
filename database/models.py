@@ -1,5 +1,6 @@
 import datetime
 import enum
+import secrets
 
 from sqlalchemy import (BigInteger, Boolean, DateTime, Enum, ForeignKey, Numeric, String)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -31,6 +32,7 @@ class Event(Base):
     status: Mapped[EventStatus] = mapped_column(Enum(EventStatus), default=EventStatus.ACTIVE)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
 
+    invite_token: Mapped[str] = mapped_column(String(32), unique=True, default=lambda: secrets.token_urlsafe(12))
     participants: Mapped[list["Participant"]] = relationship(back_populates="event", cascade="all, delete-orphan")
     expenses: Mapped[list["Expense"]] = relationship(back_populates="event", cascade="all, delete-orphan")
     editors: Mapped[list["EventEditor"]] = relationship(back_populates="event", cascade="all, delete-orphan")
@@ -94,5 +96,7 @@ class EventEditor(Base):
     event_id: Mapped[int] = mapped_column(ForeignKey("events.id"))
     tg_user_id: Mapped[int] = mapped_column(BigInteger)
     is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
+    tg_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    tg_first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     event: Mapped["Event"] = relationship(back_populates="editors")

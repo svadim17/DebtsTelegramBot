@@ -55,3 +55,12 @@ def confirm_delete_participant_keyboard(participant_id: int, event_id: int) -> I
     builder.button(text="Отмена", callback_data=f"participants:{event_id}")
     builder.adjust(1)
     return builder.as_markup()
+
+
+def share_menu_keyboard(event_id: int) -> InlineKeyboardBuilder:
+    """Клавиатура раздела "Доступ" — обновить ссылку-приглашение или вернуться назад."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔄 Обновить ссылку", callback_data=f"regenerate_link:{event_id}")
+    builder.button(text="⬅️ Назад", callback_data=f"open_event:{event_id}")
+    builder.adjust(1)
+    return builder.as_markup()
